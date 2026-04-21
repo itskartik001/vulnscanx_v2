@@ -1,0 +1,20 @@
+version: '3.9'
+
+services:
+  vulnscanx:
+    build: .
+    container_name: vulnscanx
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./reports/output:/app/reports/output
+      - ./logs:/app/logs
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=change-this-in-production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -1,0 +1,28 @@
+id: sqli-time-based
+name: Time-Based Blind SQL Injection
+author: VulnScanX Team
+severity: critical
+description: Detects blind SQL injection by measuring response time delays
+category: SQL Injection
+cwe: CWE-89
+owasp: A03:2025
+cvss: 9.0
+tags:
+  - sqli
+  - blind
+  - time-based
+
+payloads:
+  - "'; SELECT SLEEP(5)--"
+  - "1' AND SLEEP(5)--"
+  - "'; WAITFOR DELAY '0:0:5'--"
+  - "1; SELECT pg_sleep(5)--"
+  - "' AND (SELECT * FROM (SELECT(SLEEP(5)))a)--"
+
+match:
+  type: response_time
+  threshold_seconds: 4.5
+
+remediation: |
+  Same as error-based SQL injection — use parameterized queries.
+  Time-based injection is harder to detect but equally dangerous.

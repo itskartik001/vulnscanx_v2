@@ -1,0 +1,40 @@
+id: xss-reflected-basic
+name: Reflected XSS — Basic Script Tag
+description: |
+  Tests for reflected Cross-Site Scripting using basic script tag payloads
+  in URL query parameters. The scanner injects payloads and checks if they
+  are echoed back in the response body without encoding.
+severity: high
+cvss_score: 7.2
+author: vulnscanx
+tags:
+  - xss
+  - injection
+  - owasp-a05
+  - cwe-79
+
+requests:
+  - method: GET
+    path: /?q={{payload}}&search={{payload}}&id={{payload}}
+    payloads:
+      payload:
+        - "<script>alert('XSS')</script>"
+        - "<img src=x onerror=alert(1)>"
+        - "<svg onload=alert(1)>"
+    matchers:
+      - type: word
+        words:
+          - "<script>alert"
+          - "onerror=alert"
+          - "onload=alert"
+        part: body
+        condition: or
+    stop_at_first_match: true
+
+remediation: |
+  1. HTML-encode all user-supplied values before rendering in the page.
+  2. Implement a strict Content-Security-Policy (CSP).
+  3. Use a framework with automatic output encoding (React, Angular, etc.).
+references:
+  - https://owasp.org/www-community/attacks/xss/
+  - https://cwe.mitre.org/data/definitions/79.html

@@ -1,0 +1,45 @@
+id: xss-reflected
+name: Reflected XSS Detection
+author: VulnScanX Team
+severity: high
+description: Detects reflected cross-site scripting vulnerabilities in GET/POST parameters
+category: Cross-Site Scripting
+cwe: CWE-79
+owasp: A03:2025
+cvss: 8.2
+tags:
+  - xss
+  - injection
+  - reflected
+
+payloads:
+  - "<script>alert('XSS')</script>"
+  - "<img src=x onerror=alert('XSS')>"
+  - "'><script>alert(document.domain)</script>"
+  - "<svg onload=alert(1)>"
+  - "<details open ontoggle=alert(1)>"
+
+match:
+  type: contains_any
+  values:
+    - "alert('XSS')"
+    - "alert(document.domain)"
+    - "onerror=alert"
+    - "onload=alert"
+    - "<svg"
+
+false_positive_filters:
+  - "html escaped"
+  - "&lt;script&gt;"
+
+remediation: |
+  1. HTML-encode all user-controlled output using context-aware encoding.
+  2. Implement Content-Security-Policy: default-src 'self'
+  3. Use modern templating engines with auto-escaping enabled.
+  4. Apply input validation whitelisting on the server side.
+  5. Consider using DOMPurify for client-side sanitization.
+
+references:
+  - https://owasp.org/www-community/attacks/xss/
+  - https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
+  - https://portswigger.net/web-security/cross-site-scripting

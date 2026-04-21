@@ -1,0 +1,165 @@
+id: exposed-env-file
+name: Exposed .env Configuration File
+description: |
+  Checks for publicly accessible .env files which typically contain database
+  credentials, API keys, secret tokens, and other sensitive configuration.
+  This is a critical misconfiguration that allows instant credential theft.
+severity: critical
+cvss_score: 9.8
+author: vulnscanx
+tags:
+  - exposure
+  - misconfiguration
+  - owasp-a02
+  - credentials
+  - cwe-200
+
+requests:
+  - method: GET
+    path: /.env
+    matchers:
+      - type: word
+        words:
+          - "DB_PASSWORD"
+          - "APP_KEY"
+          - "SECRET_KEY"
+          - "DATABASE_URL"
+          - "AWS_SECRET"
+          - "API_KEY"
+          - "PRIVATE_KEY"
+        part: body
+        condition: or
+      - type: status
+        values: ["200"]
+    stop_at_first_match: true
+
+remediation: |
+  IMMEDIATE ACTION REQUIRED:
+  1. Take the .env file offline immediately.
+  2. Rotate ALL credentials and API keys exposed in the file.
+  3. Add .env to your .gitignore and web server deny rules.
+  4. In Apache: Add "Deny from all" in .htaccess for .env files.
+  5. In Nginx: Add "location ~ /\.env { deny all; return 404; }".
+references:
+  - https://owasp.org/www-project-web-security-testing-guide/
+  - https://cwe.mitre.org/data/definitions/200.html
+
+---
+
+id: exposed-git-repository
+name: Exposed .git Directory
+description: |
+  Detects publicly accessible .git directories. This allows attackers to
+  reconstruct the entire source code including historical commits, potentially
+  exposing hardcoded credentials, business logic, and internal architecture.
+severity: critical
+cvss_score: 9.3
+author: vulnscanx
+tags:
+  - exposure
+  - misconfiguration
+  - git
+  - source-code
+  - owasp-a02
+
+requests:
+  - method: GET
+    path: /.git/HEAD
+    matchers:
+      - type: word
+        words:
+          - "ref: refs/"
+          - "HEAD"
+        part: body
+        condition: or
+      - type: status
+        values: ["200"]
+
+remediation: |
+  1. Immediately block access to .git/ at the web server level.
+  2. Rotate any credentials committed in git history (use git-secrets, trufflehog).
+  3. Nginx: location ~ /\.git { deny all; return 404; }
+  4. Apache: RedirectMatch 404 /\.git
+references:
+  - https://owasp.org/www-project-web-security-testing-guide/
+
+---
+
+id: exposed-phpinfo
+name: PHP Info Page Exposed
+description: |
+  A phpinfo() output page is publicly accessible. This reveals the PHP version,
+  loaded extensions, configuration settings, environment variables, and server
+  paths — all valuable reconnaissance information for an attacker.
+severity: medium
+cvss_score: 5.3
+author: vulnscanx
+tags:
+  - exposure
+  - phpinfo
+  - information-disclosure
+  - owasp-a02
+
+requests:
+  - method: GET
+    path: /phpinfo.php
+    matchers:
+      - type: word
+        words:
+          - "PHP Version"
+          - "phpinfo()"
+        part: body
+        condition: or
+      - type: status
+        values: ["200"]
+
+  - method: GET
+    path: /info.php
+    matchers:
+      - type: word
+        words:
+          - "PHP Version"
+          - "phpinfo()"
+        part: body
+        condition: or
+
+remediation: |
+  1. Remove all phpinfo() pages from production servers.
+  2. Restrict access to admin/diagnostic pages via IP whitelist.
+  3. Disable phpinfo() in php.ini: disable_functions = phpinfo
+
+---
+
+id: cors-wildcard-misconfiguration
+name: CORS Wildcard Origin
+description: |
+  The server returns Access-Control-Allow-Origin: * which permits any
+  website to make cross-origin requests to this endpoint. Combined with
+  cookies or auth headers this can lead to CSRF and data theft.
+severity: high
+cvss_score: 7.5
+author: vulnscanx
+tags:
+  - cors
+  - misconfiguration
+  - owasp-a02
+
+requests:
+  - method: GET
+    path: /
+    headers:
+      Origin: "https://evil.vulnscanx.test"
+    matchers:
+      - type: word
+        words:
+          - "access-control-allow-origin: *"
+        part: headers
+        condition: or
+
+remediation: |
+  1. Replace wildcard CORS with explicit origin allowlist.
+  2. Never combine Access-Control-Allow-Origin: * with credentials mode.
+  3. Implement proper CORS validation on the server side.
+references:
+  - https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+  - https://portswigger.net/web-security/cors

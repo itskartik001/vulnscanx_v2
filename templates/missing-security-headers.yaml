@@ -1,0 +1,45 @@
+id: missing-security-headers
+name: Missing HTTP Security Headers
+author: VulnScanX Team
+severity: medium
+description: Checks for absence of critical security response headers
+category: Security Misconfiguration
+cwe: CWE-693
+owasp: A02:2025
+cvss: 5.3
+tags:
+  - headers
+  - misconfiguration
+
+checks:
+  - header: Strict-Transport-Security
+    severity: medium
+    cvss: 6.5
+    expected_contains: "max-age"
+    remediation: "Add: Strict-Transport-Security: max-age=31536000; includeSubDomains; preload"
+
+  - header: Content-Security-Policy
+    severity: medium
+    cvss: 6.1
+    remediation: "Add: Content-Security-Policy: default-src 'self'; script-src 'self'"
+
+  - header: X-Frame-Options
+    severity: medium
+    cvss: 5.4
+    expected_values: ["DENY", "SAMEORIGIN"]
+    remediation: "Add: X-Frame-Options: DENY"
+
+  - header: X-Content-Type-Options
+    severity: low
+    cvss: 3.7
+    expected_value: "nosniff"
+    remediation: "Add: X-Content-Type-Options: nosniff"
+
+  - header: Referrer-Policy
+    severity: low
+    cvss: 3.1
+    remediation: "Add: Referrer-Policy: strict-origin-when-cross-origin"
+
+references:
+  - https://securityheaders.com
+  - https://owasp.org/www-project-secure-headers/

@@ -1,0 +1,44 @@
+id: open-redirect
+name: Open Redirect
+author: VulnScanX Team
+severity: medium
+description: Detects open redirect vulnerabilities that can be used for phishing
+category: Open Redirect
+cwe: CWE-601
+owasp: A01:2025
+cvss: 6.1
+tags:
+  - redirect
+  - phishing
+
+payloads:
+  - "https://evil.com"
+  - "//evil.com"
+  - "/\\evil.com"
+  - "https:evil.com"
+  - "%0ahttps://evil.com"
+
+target_params:
+  - redirect
+  - url
+  - next
+  - return
+  - returnUrl
+  - redirect_uri
+  - callback
+  - goto
+  - dest
+  - destination
+  - continue
+  - forward
+
+match:
+  type: response_header
+  header: Location
+  contains: "evil.com"
+
+remediation: |
+  1. Avoid redirects using user-controlled URLs entirely.
+  2. If required, use a whitelist of allowed redirect destinations.
+  3. Validate and sanitize redirect URLs server-side.
+  4. Use relative paths for internal redirects.

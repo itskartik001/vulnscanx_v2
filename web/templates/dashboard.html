@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VulnScanX — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #040810; --surface: #080f1e; --surface2: #0d1a2e; --surface3: #12243d;
+  --glass: rgba(13,26,46,0.85); --border: rgba(56,189,248,0.12); --border2: rgba(56,189,248,0.3);
+  --text: #e2eaf5; --text-muted: #5f7a9c; --accent: #38bdf8; --accent2: #0ea5e9;
+  --critical: #f43f5e; --high: #fb923c; --medium: #fbbf24; --low: #60a5fa; --info: #94a3b8;
+  --green: #22c55e; --purple: #7c3aed; --glow: 0 0 20px rgba(56,189,248,0.25);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; overflow-x:hidden; }
+body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index:0; background-image:linear-gradient(rgba(56,189,248,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,0.03) 1px,transparent 1px); background-size:40px 40px; }
+.orb { position:fixed; border-radius:50%; filter:blur(90px); pointer-events:none; z-index:0; }
+.orb1 { width:600px;height:600px;background:rgba(56,189,248,0.05);top:-250px;right:-150px; }
+.orb2 { width:500px;height:500px;background:rgba(124,58,237,0.04);bottom:-200px;left:-150px; }
+
+.topbar { position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:.65rem 1.75rem;background:rgba(4,8,16,0.9);border-bottom:1px solid var(--border2);backdrop-filter:blur(24px); }
+.logo { display:flex;align-items:center;gap:.65rem;font-family:'Space Mono',monospace;font-weight:700;font-size:1rem;color:var(--accent); }
+.logo-icon { width:30px;height:30px;background:linear-gradient(135deg,var(--accent),var(--purple));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.95rem;box-shadow:var(--glow); }
+.nav { display:flex;gap:.2rem; }
+.nav-btn { padding:.4rem 1rem;border-radius:7px;font-size:.82rem;cursor:pointer;border:none;background:none;color:var(--text-muted);font-family:'Syne',sans-serif;transition:.2s; }
+.nav-btn:hover { color:var(--accent);background:rgba(56,189,248,0.07); }
+.nav-btn.active { color:var(--accent);background:rgba(56,189,248,0.1); }
+.topbar-right { display:flex;align-items:center;gap:1rem; }
+.status-pill { display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:var(--text-muted);font-family:'Space Mono',monospace; }
+.dot { width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.35} }
+
+.layout { display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 53px);position:relative;z-index:1; }
+.sidebar { border-right:1px solid var(--border);padding:1.25rem;display:flex;flex-direction:column;gap:1rem;background:rgba(8,15,30,0.6);overflow-y:auto; }
+.main-area { overflow-y:auto; }
+
+.panel { background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:1.1rem;backdrop-filter:blur(12px); }
+.panel-title { font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--accent);margin-bottom:.9rem;display:flex;align-items:center;gap:.45rem; }
+.panel-title::before { content:'';display:block;width:3px;height:13px;background:var(--accent);border-radius:2px; }
+
+.form-group { margin-bottom:.8rem; }
+label { font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:.3rem; }
+input[type=text],input[type=number],select,textarea { width:100%;background:rgba(4,8,16,0.8);border:1px solid var(--border);border-radius:8px;padding:.6rem .85rem;color:var(--text);font-family:'Space Mono',monospace;font-size:.8rem;outline:none;transition:.2s; }
+input:focus,select:focus,textarea:focus { border-color:var(--accent2);box-shadow:0 0 0 3px rgba(56,189,248,0.1); }
+select option { background:var(--surface2); }
+textarea { resize:vertical;min-height:60px; }
+
+.toggle-group { display:flex;gap:.35rem;flex-wrap:wrap; }
+.tog { padding:.28rem .65rem;border-radius:6px;font-size:.73rem;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;transition:.2s;font-family:'Syne',sans-serif; }
+.tog:hover { border-color:var(--accent);color:var(--accent); }
+.tog.on { background:rgba(56,189,248,0.14);border-color:var(--accent);color:var(--accent); }
+
+.switch-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:.55rem; }
+.switch-label { font-size:.78rem;color:var(--text-muted); }
+.switch { position:relative;width:36px;height:19px;flex-shrink:0; }
+.switch input { opacity:0;width:0;height:0; }
+.slider { position:absolute;inset:0;background:var(--surface3);border-radius:99px;cursor:pointer;transition:.3s;border:1px solid var(--border); }
+.slider::before { content:'';position:absolute;left:2px;bottom:2px;width:13px;height:13px;border-radius:50%;background:var(--text-muted);transition:.3s; }
+input:checked + .slider { background:rgba(56,189,248,0.18);border-color:var(--accent); }
+input:checked + .slider::before { transform:translateX(17px);background:var(--accent); }
+
+.btn-launch { width:100%;padding:.85rem;background:linear-gradient(135deg,var(--accent2),var(--purple));border:none;border-radius:10px;color:#fff;font-family:'Syne',sans-serif;font-weight:800;font-size:.92rem;cursor:pointer;letter-spacing:.5px;transition:.3s;box-shadow:0 4px 22px rgba(56,189,248,0.28);position:relative;overflow:hidden; }
+.btn-launch:hover { transform:translateY(-1px);box-shadow:0 6px 32px rgba(56,189,248,0.45); }
+.btn-launch:disabled { opacity:.45;cursor:not-allowed;transform:none; }
+
+.scan-item { display:flex;align-items:center;gap:.7rem;padding:.7rem .75rem;border-radius:8px;cursor:pointer;transition:.2s;border:1px solid transparent;margin-bottom:.3rem; }
+.scan-item:hover { background:var(--surface2);border-color:var(--border); }
+.scan-item.active { background:rgba(56,189,248,0.07);border-color:var(--border2); }
+.s-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.s-info { flex:1;min-width:0; }
+.s-target { font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.s-meta { font-size:.68rem;color:var(--text-muted);font-family:'Space Mono',monospace; }
+.s-badge { font-size:.67rem;padding:.13rem .42rem;border-radius:4px;font-weight:700;white-space:nowrap; }
+
+.prog-label { display:flex;justify-content:space-between;font-size:.7rem;color:var(--text-muted);margin-bottom:.35rem;font-family:'Space Mono',monospace; }
+.prog-track { background:var(--surface3);border-radius:99px;height:5px;overflow:hidden; }
+.prog-fill { height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent2),var(--purple));transition:width .5s;box-shadow:0 0 8px rgba(56,189,248,0.4); }
+
+.tab-view { display:none; }
+.tab-view.active { display:flex;flex-direction:column; }
+
+.stats-row { display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem;padding:1.25rem 1.25rem 0; }
+.stat-card { background:var(--glass);border:1px solid var(--border);border-radius:11px;padding:.9rem;text-align:center;backdrop-filter:blur(10px);transition:.25s; }
+.stat-card:hover { border-color:var(--border2);transform:translateY(-2px); }
+.stat-num { font-size:1.9rem;font-weight:900;line-height:1; }
+.stat-lbl { font-size:.63rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-top:.25rem; }
+.stat-card.c .stat-num{color:var(--critical)} .stat-card.h .stat-num{color:var(--high)} .stat-card.m .stat-num{color:var(--medium)} .stat-card.l .stat-num{color:var(--low)} .stat-card.t .stat-num{color:var(--accent)}
+
+.two-col { display:grid;grid-template-columns:1fr 1fr;gap:.9rem;padding:0 1.25rem; }
+.full-col { padding:0 1.25rem; }
+
+.risk-num { font-size:2.4rem;font-weight:900;color:var(--accent);font-family:'Space Mono',monospace;line-height:1; }
+.risk-track { background:var(--surface3);border-radius:99px;height:9px;overflow:hidden;margin-top:.8rem; }
+.risk-bar { height:100%;border-radius:99px;background:linear-gradient(90deg,#22c55e,#fbbf24,#f43f5e);transition:width 1s ease; }
+
+.chart-rows { display:flex;flex-direction:column;gap:.55rem;margin-top:.4rem; }
+.c-row { display:flex;align-items:center;gap:.65rem; }
+.c-lbl { width:65px;font-size:.7rem;text-align:right;color:var(--text-muted);font-family:'Space Mono',monospace;flex-shrink:0; }
+.c-track { flex:1;background:var(--surface3);border-radius:99px;height:14px;overflow:hidden; }
+.c-fill { height:100%;border-radius:99px;transition:width 1s ease; }
+.c-cnt { width:28px;font-size:.78rem;font-weight:700;font-family:'Space Mono',monospace; }
+
+.terminal { background:rgba(2,6,14,0.95);border:1px solid var(--border);border-radius:9px;padding:.9rem;font-family:'Space Mono',monospace;font-size:.72rem;max-height:160px;overflow-y:auto;line-height:1.7; }
+.terminal::-webkit-scrollbar{width:3px} .terminal::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.log-i{color:#4ade80} .log-w{color:#fbbf24} .log-e{color:#f87171} .log-d{color:#60a5fa}
+.log-line { animation:fadeIn .25s; }
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.findings-box { background:var(--glass);border:1px solid var(--border);border-radius:12px;overflow:hidden;backdrop-filter:blur(10px);margin:0 1.25rem; }
+.findings-hdr { display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.1rem;border-bottom:1px solid var(--border); }
+.filter-tabs { display:flex;gap:.25rem; }
+.ftab { padding:.27rem .7rem;border-radius:6px;font-size:.72rem;cursor:pointer;border:1px solid transparent;transition:.2s;color:var(--text-muted);background:none;font-family:'Syne',sans-serif; }
+.ftab:hover{color:var(--text);border-color:var(--border)}
+.ftab.active{color:var(--accent);border-color:var(--border2);background:rgba(56,189,248,0.08)}
+.findings-scroll { max-height:460px;overflow-y:auto; }
+.findings-scroll::-webkit-scrollbar{width:3px} .findings-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+.f-row { padding:.9rem 1.1rem;border-bottom:1px solid rgba(56,189,248,0.05);cursor:pointer;transition:.15s; }
+.f-row:hover { background:var(--surface2); }
+.f-top { display:flex;align-items:center;gap:.65rem; }
+.f-sev-dot { width:9px;height:9px;border-radius:50%;flex-shrink:0; }
+.f-title { flex:1;font-size:.85rem;font-weight:600; }
+.cvss-tag { font-family:'Space Mono',monospace;font-size:.69rem;padding:.18rem .48rem;border-radius:5px;background:rgba(56,189,248,0.1);color:var(--accent); }
+.sev-tag { font-size:.67rem;padding:.15rem .45rem;border-radius:4px;font-weight:700;margin-left:.25rem; }
+.f-url { font-size:.7rem;color:var(--text-muted);margin:.3rem 0 0 1.55rem;font-family:'Space Mono',monospace;word-break:break-all; }
+.f-detail { display:none;margin:.7rem 0 0 1.55rem; }
+.f-detail.open { display:block;animation:fadeIn .2s; }
+.detail-grid { display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin-bottom:.65rem; }
+.d-cell { background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:.5rem .65rem; }
+.d-key { font-size:.63rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:.2rem; }
+.d-val { font-size:.8rem; }
+.code-block { background:rgba(2,6,14,0.9);border:1px solid var(--border);border-radius:7px;padding:.65rem .8rem;font-family:'Space Mono',monospace;font-size:.72rem;color:#7dd3fc;white-space:pre-wrap;word-break:break-all;overflow-x:auto;margin:.35rem 0; }
+.rem-block { background:rgba(5,46,22,0.45);border:1px solid rgba(34,197,94,0.2);border-radius:7px;padding:.65rem .8rem;color:#86efac;font-size:.8rem;white-space:pre-wrap;margin:.35rem 0; }
+.ai-block { background:rgba(30,16,51,0.7);border:1px solid rgba(124,58,237,0.3);border-radius:7px;padding:.65rem .8rem;color:#c4b5fd;font-size:.76rem;white-space:pre-wrap;margin:.35rem 0; }
+.tag { display:inline-block;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.12);border-radius:4px;padding:.08rem .38rem;font-size:.66rem;color:var(--text-muted);margin:.1rem; }
+.fld-lbl { font-size:.64rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:.6rem 0 .2rem; }
+
+.report-row { display:flex;gap:.5rem;flex-wrap:wrap; }
+.btn-rpt { padding:.48rem .95rem;border-radius:8px;font-size:.78rem;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;transition:.2s;font-family:'Syne',sans-serif;display:flex;align-items:center;gap:.35rem; }
+.btn-rpt:hover { border-color:var(--accent);color:var(--accent);background:rgba(56,189,248,0.07); }
+.btn-rpt:disabled { opacity:.3;cursor:not-allowed; }
+
+.welcome { text-align:center;padding:5rem 2rem; }
+.welcome h2 { font-size:2.2rem;font-weight:900;color:var(--accent);margin:.75rem 0 .5rem; }
+.welcome p { color:var(--text-muted);max-width:480px;margin:0 auto 2rem;font-size:.9rem; }
+.feat-pills { display:flex;flex-wrap:wrap;justify-content:center;gap:.65rem; }
+.feat-pill { background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:.75rem 1.2rem;font-size:.8rem;color:var(--text-muted);backdrop-filter:blur(10px); }
+
+.empty { text-align:center;padding:3rem 2rem;color:var(--text-muted); }
+.empty-icon { font-size:2.5rem;margin-bottom:.75rem;opacity:.45; }
+
+/* TEMPLATES */
+.tmpl-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.9rem;padding:1.25rem; }
+.tmpl-card { background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:1.1rem;backdrop-filter:blur(10px);transition:.25s; }
+.tmpl-card:hover { border-color:var(--border2);transform:translateY(-2px); }
+.tmpl-id { font-family:'Space Mono',monospace;font-size:.72rem;color:var(--accent);background:rgba(56,189,248,0.1);padding:.2rem .5rem;border-radius:5px; }
+.tmpl-sev { font-size:.67rem;padding:.15rem .45rem;border-radius:4px;font-weight:700; }
+.tmpl-name { font-size:.88rem;font-weight:700;margin:.5rem 0 .35rem; }
+.tmpl-desc { font-size:.78rem;color:var(--text-muted);line-height:1.5;margin-bottom:.65rem; }
+
+/* HISTORY */
+.history-wrap { padding:1.25rem; }
+.hist-search { display:flex;gap:.65rem;margin-bottom:1rem; }
+.hist-search input { flex:1; }
+.history-table { background:var(--glass);border:1px solid var(--border);border-radius:12px;overflow:hidden; }
+.ht-head { display:grid;grid-template-columns:80px 1fr 100px 80px 80px 120px;gap:.5rem;padding:.7rem 1rem;background:rgba(56,189,248,0.05);border-bottom:1px solid var(--border);font-size:.68rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted); }
+.ht-row { display:grid;grid-template-columns:80px 1fr 100px 80px 80px 120px;gap:.5rem;padding:.75rem 1rem;border-bottom:1px solid rgba(56,189,248,0.04);transition:.15s;cursor:pointer;align-items:center; }
+.ht-row:hover { background:var(--surface2); }
+.ht-row:last-child { border-bottom:none; }
+.ht-cell { font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+
+/* SETTINGS */
+.settings-wrap { padding:1.25rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem; }
+.settings-section { background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:1.25rem;backdrop-filter:blur(10px); }
+.settings-section.full { grid-column:1/-1; }
+.set-title { font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--accent);margin-bottom:1rem;display:flex;align-items:center;gap:.4rem; }
+.set-title::before { content:'';display:block;width:3px;height:13px;background:var(--accent);border-radius:2px; }
+.set-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border); }
+.set-row:last-child { border-bottom:none;margin-bottom:0;padding-bottom:0; }
+.set-info { flex:1;margin-right:1rem; }
+.set-key { font-size:.82rem;font-weight:600;margin-bottom:.2rem; }
+.set-desc { font-size:.72rem;color:var(--text-muted); }
+.set-input { width:130px; }
+.btn-save { padding:.55rem 1.5rem;border-radius:8px;background:linear-gradient(135deg,var(--accent2),var(--purple));border:none;color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:.82rem;cursor:pointer;transition:.2s; }
+.btn-save:hover { opacity:.9;transform:translateY(-1px); }
+.btn-danger { padding:.55rem 1.5rem;border-radius:8px;background:rgba(244,63,94,0.15);border:1px solid rgba(244,63,94,0.3);color:#f43f5e;font-family:'Syne',sans-serif;font-weight:700;font-size:.82rem;cursor:pointer;transition:.2s; }
+.btn-danger:hover { background:rgba(244,63,94,0.25); }
+
+.active-panel { background:rgba(56,189,248,0.06);border:1px solid var(--border2);border-radius:12px;padding:1rem; }
+
+.toast { position:fixed;bottom:1.5rem;right:1.5rem;background:var(--surface2);border:1px solid var(--green);border-radius:10px;padding:.75rem 1.25rem;color:var(--green);font-size:.82rem;font-weight:600;z-index:999;animation:slideUp .3s;display:none; }
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:repeat(3,1fr)}
+  .two-col,.settings-wrap{grid-template-columns:1fr}
+  .ht-head,.ht-row{grid-template-columns:70px 1fr 80px 70px}
+  .ht-head>*:nth-child(n+5),.ht-row>*:nth-child(n+5){display:none}
+}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div><div class="orb orb2"></div>
+
+<header class="topbar">
+  <div class="logo"><div class="logo-icon">⚡</div>VulnScanX<span style="font-size:.62rem;color:var(--text-muted);margin-left:.2rem">v2.0</span></div>
+  <nav class="nav">
+    <button class="nav-btn active" id="tab-dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="nav-btn" id="tab-history" onclick="switchTab('history')">Scan History</button>
+    <button class="nav-btn" id="tab-templates" onclick="switchTab('templates')">Templates</button>
+    <button class="nav-btn" id="tab-settings" onclick="switchTab('settings')">⚙ Settings</button>
+  </nav>
+  <div class="topbar-right">
+    <div class="status-pill"><div class="dot"></div><span>ONLINE</span></div>
+    <span style="color:var(--border2)">|</span>
+    <span id="scan-count" style="font-size:.75rem;color:var(--text-muted);font-family:'Space Mono',monospace">0 scans</span>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="panel">
+      <div class="panel-title">New Scan</div>
+      <div class="form-group"><label>Target URL</label><input type="text" id="target-input" placeholder="https://example.com"></div>
+      <div class="form-group"><label>Scan Type</label>
+        <div class="toggle-group" id="type-group">
+          <button class="tog" onclick="setType('quick',this)">Quick</button>
+          <button class="tog on" onclick="setType('full',this)">Full</button>
+          <button class="tog" onclick="setType('recon',this)">Recon</button>
+          <button class="tog" onclick="setType('vuln',this)">Vuln</button>
+        </div>
+      </div>
+      <div class="form-group"><label>Modules</label>
+        <div class="toggle-group">
+          <button class="tog on" data-mod="xss" onclick="toggleMod(this)">XSS</button>
+          <button class="tog on" data-mod="sqli" onclick="toggleMod(this)">SQLi</button>
+          <button class="tog on" data-mod="headers" onclick="toggleMod(this)">Headers</button>
+          <button class="tog on" data-mod="ports" onclick="toggleMod(this)">Ports</button>
+          <button class="tog on" data-mod="traversal" onclick="toggleMod(this)">Traversal</button>
+          <button class="tog on" data-mod="subdomain" onclick="toggleMod(this)">Subdomain</button>
+          <button class="tog on" data-mod="dns" onclick="toggleMod(this)">DNS</button>
+          <button class="tog" data-mod="whois" onclick="toggleMod(this)">WHOIS</button>
+          <button class="tog" data-mod="dirbrute" onclick="toggleMod(this)">DirBrute</button>
+        </div>
+      </div>
+      <div class="form-group"><label>Threads</label>
+        <select id="threads-sel"><option value="5">5 — Stealth</option><option value="10" selected>10 — Normal</option><option value="20">20 — Fast</option><option value="50">50 — Aggressive</option></select>
+      </div>
+      <div style="margin-bottom:.8rem">
+        <div class="switch-row"><span class="switch-label">🤖 AI Analysis</span><label class="switch"><input type="checkbox" id="ai-sw" checked><span class="slider"></span></label></div>
+        <div class="switch-row"><span class="switch-label">🔒 Verify SSL</span><label class="switch"><input type="checkbox" id="ssl-sw"><span class="slider"></span></label></div>
+        <div class="switch-row"><span class="switch-label">📄 YAML Templates</span><label class="switch"><input type="checkbox" id="tmpl-sw"><span class="slider"></span></label></div>
+      </div>
+      <button class="btn-launch" id="launch-btn" onclick="startScan()">⚡ Launch Scan</button>
+    </div>
+
+    <div class="active-panel" id="active-panel" style="display:none">
+      <div class="panel-title" style="margin-bottom:.6rem">Active Scan</div>
+      <div id="active-target" style="font-size:.8rem;font-weight:600;word-break:break-all;margin-bottom:.6rem"></div>
+      <div class="prog-label"><span id="prog-module">Initializing...</span><span id="prog-pct">0%</span></div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+      <div style="display:flex;gap:.4rem;margin-top:.7rem">
+        <button onclick="stopActiveScan()" style="flex:1;padding:.38rem;border-radius:6px;background:rgba(244,63,94,0.13);border:1px solid rgba(244,63,94,0.28);color:#f43f5e;font-size:.75rem;cursor:pointer;font-family:'Syne',sans-serif">⏹ Stop</button>
+        <button onclick="viewActiveScan()" style="flex:1;padding:.38rem;border-radius:6px;background:rgba(56,189,248,0.08);border:1px solid var(--border);color:var(--accent);font-size:.75rem;cursor:pointer;font-family:'Syne',sans-serif">👁 View</button>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1;overflow-y:auto;min-height:120px">
+      <div class="panel-title">Recent Scans</div>
+      <div id="scan-list"><div class="empty"><div class="empty-icon">📡</div><div>No scans yet</div></div></div>
+    </div>
+  </aside>
+
+  <main class="main-area">
+
+    <!-- DASHBOARD TAB -->
+    <div class="tab-view active" id="view-dashboard">
+      <div id="welcome-screen">
+        <div class="welcome">
+          <div style="font-size:3.5rem">⚡</div>
+          <h2>VulnScanX</h2>
+          <p>Advanced vulnerability scanning framework. Enter a target on the left and launch a scan to begin.</p>
+          <div class="feat-pills">
+            <div class="feat-pill">🔍 Subdomain Enumeration</div>
+            <div class="feat-pill">💉 XSS &amp; SQLi Detection</div>
+            <div class="feat-pill">🛡️ Headers Analysis</div>
+            <div class="feat-pill">🤖 AI Severity Analysis</div>
+            <div class="feat-pill">🔌 Port Scanning</div>
+            <div class="feat-pill">📁 Directory Brute-Force</div>
+            <div class="feat-pill">📊 PDF / JSON / SARIF Reports</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="results-screen" style="display:none;flex-direction:column;gap:.9rem;padding-bottom:1.5rem">
+        <div class="stats-row">
+          <div class="stat-card c"><div class="stat-num" id="s-critical">0</div><div class="stat-lbl">Critical</div></div>
+          <div class="stat-card h"><div class="stat-num" id="s-high">0</div><div class="stat-lbl">High</div></div>
+          <div class="stat-card m"><div class="stat-num" id="s-medium">0</div><div class="stat-lbl">Medium</div></div>
+          <div class="stat-card l"><div class="stat-num" id="s-low">0</div><div class="stat-lbl">Low</div></div>
+          <div class="stat-card t"><div class="stat-num" id="s-total">0</div><div class="stat-lbl">Total</div></div>
+        </div>
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-title">Risk Score</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div><div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.2rem">Overall Risk</div><div class="risk-num"><span id="risk-score">0.0</span><span style="font-size:1rem;color:var(--text-muted)">/10</span></div></div>
+              <div style="text-align:right"><div style="font-size:.68rem;color:var(--text-muted)">Target</div><div style="font-size:.78rem;font-weight:600;word-break:break-all;max-width:160px" id="risk-target">—</div><div style="font-size:.68rem;color:var(--text-muted);margin-top:.2rem" id="scan-dur">—</div></div>
+            </div>
+            <div class="risk-track"><div class="risk-bar" id="risk-bar" style="width:0%"></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">Distribution</div>
+            <div class="chart-rows" id="dist-chart"><div class="empty" style="padding:.5rem"><div>No data</div></div></div>
+          </div>
+        </div>
+        <div class="full-col">
+          <div class="panel"><div class="panel-title">Scan Log</div><div class="terminal" id="terminal"><div class="log-line log-i">[VulnScanX] Ready — awaiting scan results...</div></div></div>
+        </div>
+        <div class="findings-box">
+          <div class="findings-hdr">
+            <div style="font-size:.82rem;font-weight:700" id="findings-count">Findings</div>
+            <div class="filter-tabs">
+              <button class="ftab active" onclick="filterF('ALL',this)">All</button>
+              <button class="ftab" onclick="filterF('CRITICAL',this)" style="color:var(--critical)">Critical</button>
+              <button class="ftab" onclick="filterF('HIGH',this)" style="color:var(--high)">High</button>
+              <button class="ftab" onclick="filterF('MEDIUM',this)" style="color:var(--medium)">Medium</button>
+              <button class="ftab" onclick="filterF('LOW',this)" style="color:var(--low)">Low</button>
+              <button class="ftab" onclick="filterF('INFO',this)">Info</button>
+            </div>
+          </div>
+          <div class="findings-scroll" id="findings-list"><div class="empty"><div class="empty-icon">⚡</div><div>Scan in progress...</div></div></div>
+        </div>
+        <div class="full-col" style="padding-bottom:0">
+          <div class="panel"><div class="panel-title">Download Reports</div>
+            <div class="report-row">
+              <button class="btn-rpt" id="rpt-json" onclick="dlReport('json')" disabled>📄 JSON</button>
+              <button class="btn-rpt" id="rpt-html" onclick="dlReport('html')" disabled>🌐 HTML</button>
+              <button class="btn-rpt" id="rpt-sarif" onclick="dlReport('sarif')" disabled>🔬 SARIF</button>
+              <button class="btn-rpt" id="rpt-pdf" onclick="dlReport('pdf')" disabled>📋 PDF</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCAN HISTORY TAB -->
+    <div class="tab-view" id="view-history">
+      <div class="history-wrap">
+        <div class="panel-title" style="margin-bottom:1rem">Scan History</div>
+        <div class="hist-search">
+          <input type="text" id="hist-search" placeholder="Filter by target or scan ID..." oninput="filterHistory()">
+          <button class="btn-save" onclick="loadHistory()">↻ Refresh</button>
+        </div>
+        <div class="history-table">
+          <div class="ht-head"><div>Scan ID</div><div>Target</div><div>Status</div><div>Risk</div><div>Findings</div><div>Started</div></div>
+          <div id="history-body"><div class="empty"><div class="empty-icon">📂</div><div>No scan history yet</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEMPLATES TAB -->
+    <div class="tab-view" id="view-templates">
+      <div style="padding:1.25rem">
+        <div class="panel-title" style="margin-bottom:1rem">YAML Scan Templates</div>
+        <p style="color:var(--text-muted);font-size:.82rem;margin-bottom:1rem">These templates are loaded from <code style="color:var(--accent);background:rgba(56,189,248,0.08);padding:.1rem .35rem;border-radius:4px">templates/</code> and executed by the YAML engine when "YAML Templates" is enabled in the scan form.</p>
+        <div class="tmpl-grid" id="tmpl-grid"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div class="tab-view" id="view-settings">
+      <div class="settings-wrap">
+
+        <div class="settings-section">
+          <div class="set-title">Scan Defaults</div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Default Threads</div><div class="set-desc">Concurrent scanning threads</div></div><select class="set-input" id="set-threads"><option value="5">5 — Stealth</option><option value="10" selected>10 — Normal</option><option value="20">20 — Fast</option><option value="50">50 — Aggressive</option></select></div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Request Timeout (s)</div><div class="set-desc">Seconds per HTTP request</div></div><input type="number" class="set-input" id="set-timeout" value="10" min="3" max="60"></div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Rate Limit (req/s)</div><div class="set-desc">Max requests per second</div></div><input type="number" class="set-input" id="set-ratelimit" value="50" min="1" max="200"></div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Default Scan Type</div><div class="set-desc">Pre-selected scan preset</div></div><select class="set-input" id="set-scantype"><option value="quick">Quick</option><option value="full" selected>Full</option><option value="recon">Recon</option><option value="vuln">Vuln</option></select></div>
+        </div>
+
+        <div class="settings-section">
+          <div class="set-title">Network</div>
+          <div class="set-row"><div class="set-info"><div class="set-key">HTTP Proxy</div><div class="set-desc">e.g. Burp Suite: http://127.0.0.1:8080</div></div></div>
+          <input type="text" id="set-proxy" placeholder="http://127.0.0.1:8080" style="margin-bottom:.8rem">
+          <div class="set-row"><div class="set-info"><div class="set-key">Custom User-Agent</div><div class="set-desc">Override the default scanner UA</div></div></div>
+          <input type="text" id="set-ua" placeholder="VulnScanX/2.0 (Security Research)" style="margin-bottom:.8rem">
+          <div class="set-row"><div class="set-info"><div class="set-key">Verify SSL Certificates</div><div class="set-desc">Validate HTTPS certs (disable for self-signed)</div></div><label class="switch"><input type="checkbox" id="set-ssl"><span class="slider"></span></label></div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Follow Redirects</div><div class="set-desc">Auto-follow HTTP 3xx redirects</div></div><label class="switch"><input type="checkbox" id="set-redirect" checked><span class="slider"></span></label></div>
+        </div>
+
+        <div class="settings-section">
+          <div class="set-title">AI / Analysis</div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Enable AI Analysis</div><div class="set-desc">ML severity classification + explanations</div></div><label class="switch"><input type="checkbox" id="set-ai" checked><span class="slider"></span></label></div>
+          <div class="set-row"><div class="set-info"><div class="set-key">AI Confidence Threshold</div><div class="set-desc">Min confidence to override severity (0.5–1.0)</div></div><input type="number" class="set-input" id="set-ai-conf" value="0.75" min="0.5" max="1.0" step="0.05"></div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Run YAML Templates</div><div class="set-desc">Run template engine after module scan</div></div><label class="switch"><input type="checkbox" id="set-tmpl"><span class="slider"></span></label></div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Deduplicate Findings</div><div class="set-desc">Remove duplicate title+URL+param combos</div></div><label class="switch"><input type="checkbox" id="set-dedup" checked><span class="slider"></span></label></div>
+        </div>
+
+        <div class="settings-section">
+          <div class="set-title">Reports</div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Auto-Generate on Complete</div><div class="set-desc">Generate reports when scan finishes</div></div><label class="switch"><input type="checkbox" id="set-autoreport" checked><span class="slider"></span></label></div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Default Formats</div><div class="set-desc">Output formats to auto-generate</div></div></div>
+          <div class="toggle-group" id="fmt-group" style="margin-bottom:.8rem">
+            <button class="tog on" data-fmt="json" onclick="toggleFmt(this)">JSON</button>
+            <button class="tog on" data-fmt="html" onclick="toggleFmt(this)">HTML</button>
+            <button class="tog" data-fmt="pdf" onclick="toggleFmt(this)">PDF</button>
+            <button class="tog" data-fmt="sarif" onclick="toggleFmt(this)">SARIF</button>
+          </div>
+          <div class="set-row"><div class="set-info"><div class="set-key">Include AI Explanations</div><div class="set-desc">Add AI analysis block to each finding</div></div><label class="switch"><input type="checkbox" id="set-ai-report" checked><span class="slider"></span></label></div>
+        </div>
+
+        <div class="settings-section full">
+          <div class="set-title">Session / Auth</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div><label>Custom Cookies</label><textarea id="set-cookies" placeholder="session=abc123; token=xyz789"></textarea></div>
+            <div><label>Custom Headers (one per line)</label><textarea id="set-headers" placeholder="Authorization: Bearer TOKEN&#10;X-API-Key: your-key-here"></textarea></div>
+          </div>
+        </div>
+
+        <div class="settings-section full" style="border-color:rgba(244,63,94,0.25)">
+          <div class="set-title" style="color:#f43f5e">Danger Zone</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+            <div><div class="set-key">Clear All Scan History</div><div class="set-desc" style="font-size:.75rem;color:var(--text-muted);margin-top:.2rem">Removes all scans from display. Cannot be undone.</div></div>
+            <button class="btn-danger" onclick="clearHistory()">🗑 Clear History</button>
+          </div>
+        </div>
+
+        <div class="settings-section full" style="text-align:right;padding:.9rem 1.25rem">
+          <button class="btn-save" onclick="saveSettings()">💾 Save Settings</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SEV={CRITICAL:'#f43f5e',HIGH:'#fb923c',MEDIUM:'#fbbf24',LOW:'#60a5fa',INFO:'#94a3b8'};
+const statusColor={running:'#fbbf24',completed:'#22c55e',failed:'#f43f5e',aborted:'#94a3b8',queued:'#60a5fa'};
+let activeScanId=null, selectedScanId=null, pollTimer=null;
+let allFindings=[], activeFilter='ALL', scanType='full';
+let activeMods=new Set(['xss','sqli','headers','ports','traversal','subdomain','dns']);
+let activeFmts=new Set(['json','html']);
+let historyData=[];
+
+// ── TABS ──────────────────────────────────
+function switchTab(tab){
+  document.querySelectorAll('.tab-view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='templates') renderTemplates();
+  if(tab==='history') loadHistory();
+}
+
+// ── SCAN FORM ─────────────────────────────
+function setType(t,btn){
+  scanType=t;
+  document.getElementById('type-group').querySelectorAll('.tog').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+function toggleMod(btn){
+  btn.classList.toggle('on');
+  if(btn.classList.contains('on')) activeMods.add(btn.dataset.mod);
+  else activeMods.delete(btn.dataset.mod);
+}
+function toggleFmt(btn){
+  btn.classList.toggle('on');
+  if(btn.classList.contains('on')) activeFmts.add(btn.dataset.fmt);
+  else activeFmts.delete(btn.dataset.fmt);
+}
+
+async function startScan(){
+  const target=document.getElementById('target-input').value.trim();
+  if(!target){showToast('⚠️ Please enter a target URL',true);return;}
+  const btn=document.getElementById('launch-btn');
+  btn.disabled=true; btn.textContent='⚡ Launching...';
+  try{
+    const r=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({target,scan_type:scanType,modules:[...activeMods],
+        threads:parseInt(document.getElementById('threads-sel').value),
+        ai_analysis:document.getElementById('ai-sw').checked})});
+    const d=await r.json();
+    if(d.error){showToast('❌ '+d.error,true);return;}
+    activeScanId=d.scan_id; selectedScanId=d.scan_id;
+    switchTab('dashboard');
+    showResults(target);
+    document.getElementById('active-panel').style.display='';
+    document.getElementById('active-target').textContent=target;
+    startPolling(d.scan_id);
+    log(`[LAUNCHED] ${d.scan_id} → ${target}`,'i');
+    showToast('✅ Scan launched!');
+  }catch(e){showToast('❌ '+e.message,true);}
+  finally{btn.disabled=false;btn.textContent='⚡ Launch Scan';}
+}
+
+// ── POLLING ───────────────────────────────
+function startPolling(id){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer=setInterval(()=>poll(id),1500);
+}
+
+async function poll(id){
+  try{
+    const d=(await fetch(`/api/scan/${id}/status`)).then(r=>r.json()); const data=await d;
+    const p=data.progress;
+    if(p){
+      document.getElementById('prog-module').textContent=p.current_module?`Module: ${p.current_module}`:'Running...';
+      document.getElementById('prog-pct').textContent=`${p.percentage}%`;
+      document.getElementById('prog-fill').style.width=`${p.percentage}%`;
+    }
+    if(data.stats) updateStats(data.stats,data.risk_score,data.target);
+    if(['completed','failed','aborted'].includes(data.status)){
+      clearInterval(pollTimer);pollTimer=null;
+      document.getElementById('active-panel').style.display='none';
+      document.getElementById('prog-fill').style.width='100%';
+      if(data.status==='completed'){
+        log(`[COMPLETE] ${data.finding_count} findings | Risk ${data.risk_score}/10`,'i');
+        if(data.duration_seconds) document.getElementById('scan-dur').textContent=`Duration: ${parseFloat(data.duration_seconds).toFixed(1)}s`;
+        await fetchFindings(id); enableReports(id);
+        showToast(`✅ Done — ${data.finding_count} findings`);
+      } else {
+        log(`[${data.status.toUpperCase()}] ${data.error||''}`,'w');
+      }
+    }
+    refreshScanList();
+  }catch(e){}
+}
+
+// ── RESULTS ───────────────────────────────
+function showResults(target){
+  document.getElementById('welcome-screen').style.display='none';
+  document.getElementById('results-screen').style.display='flex';
+  document.getElementById('risk-target').textContent=target;
+  document.getElementById('findings-list').innerHTML='<div class="empty"><div class="empty-icon">⚡</div><div>Scan in progress...</div></div>';
+  clearReports();
+}
+
+function updateStats(stats,risk,target){
+  document.getElementById('s-critical').textContent=stats.CRITICAL||0;
+  document.getElementById('s-high').textContent=stats.HIGH||0;
+  document.getElementById('s-medium').textContent=stats.MEDIUM||0;
+  document.getElementById('s-low').textContent=stats.LOW||0;
+  document.getElementById('s-total').textContent=stats.total||0;
+  if(target) document.getElementById('risk-target').textContent=target;
+  const rs=parseFloat(risk)||0;
+  document.getElementById('risk-score').textContent=rs.toFixed(1);
+  document.getElementById('risk-bar').style.width=`${rs*10}%`;
+  const tot=stats.total||1;
+  document.getElementById('dist-chart').innerHTML=[
+    ['CRITICAL',stats.CRITICAL||0,SEV.CRITICAL],['HIGH',stats.HIGH||0,SEV.HIGH],
+    ['MEDIUM',stats.MEDIUM||0,SEV.MEDIUM],['LOW',stats.LOW||0,SEV.LOW],['INFO',stats.INFO||0,SEV.INFO]
+  ].map(([l,c,col])=>`<div class="c-row"><div class="c-lbl">${l}</div><div class="c-track"><div class="c-fill" style="width:${Math.round(c/tot*100)}%;background:${col}"></div></div><div class="c-cnt" style="color:${col}">${c}</div></div>`).join('');
+}
+
+async function fetchFindings(id){
+  try{const d=await (await fetch(`/api/scan/${id}/findings`)).json();allFindings=d.findings||[];renderFindings();}
+  catch(e){log('[ERROR] Could not load findings','e');}
+}
+
+function renderFindings(){
+  const filtered=activeFilter==='ALL'?allFindings:allFindings.filter(f=>f.severity===activeFilter);
+  document.getElementById('findings-count').textContent=`${filtered.length} Finding${filtered.length!==1?'s':''} ${activeFilter!=='ALL'?'('+activeFilter+')':''}`;
+  if(!filtered.length){
+    document.getElementById('findings-list').innerHTML=`<div class="empty"><div class="empty-icon">${activeFilter!=='ALL'?'✅':'🔍'}</div><div>No ${activeFilter!=='ALL'?activeFilter.toLowerCase()+' ':''}findings</div></div>`;
+    return;
+  }
+  document.getElementById('findings-list').innerHTML=filtered.map((f,i)=>{
+    const col=SEV[f.severity]||'#6b7280';
+    const poc=esc(f.proof_of_concept||''), rem=esc(f.remediation||'');
+    const tags=(f.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('');
+    const ai=f.ai_explanation?`<div class="fld-lbl">🤖 AI Analysis</div><div class="ai-block">${esc(f.ai_explanation)}</div>`:'';
+    return `<div class="f-row" onclick="toggleF(${i})">
+      <div class="f-top">
+        <div class="f-sev-dot" style="background:${col};box-shadow:0 0 7px ${col}88"></div>
+        <div class="f-title">${esc(f.title)}</div>
+        <div class="cvss-tag">CVSS ${f.cvss_score}</div>
+        <div class="sev-tag" style="background:${col}22;color:${col};border:1px solid ${col}44">${f.severity}</div>
+      </div>
+      <div class="f-url">${esc(f.url)}</div>
+      <div class="f-detail" id="fd-${i}">
+        <div class="detail-grid">
+          <div class="d-cell"><div class="d-key">Category</div><div class="d-val">${esc(f.category)}</div></div>
+          <div class="d-cell"><div class="d-key">Parameter</div><div class="d-val" style="font-family:'Space Mono',monospace">${esc(f.parameter||'N/A')}</div></div>
+          <div class="d-cell"><div class="d-key">CWE</div><div class="d-val">${esc(f.cwe_id||'N/A')}</div></div>
+          <div class="d-cell"><div class="d-key">OWASP</div><div class="d-val">${esc(f.owasp||'N/A')}</div></div>
+        </div>
+        <div class="fld-lbl">Description</div>
+        <div style="font-size:.8rem;color:var(--text-muted);line-height:1.5">${esc(f.description)}</div>
+        <div class="fld-lbl">Proof of Concept</div>
+        <div class="code-block">${poc}</div>
+        <div class="fld-lbl">Remediation</div>
+        <div class="rem-block">${rem}</div>
+        ${ai}
+        <div style="margin-top:.5rem">${tags}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleF(i){ document.getElementById(`fd-${i}`).classList.toggle('open'); }
+function filterF(sev,btn){ activeFilter=sev; document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderFindings(); }
+
+// ── REPORTS ───────────────────────────────
+function enableReports(id){
+  selectedScanId=id;
+  ['json','html','sarif','pdf'].forEach(f=>{const b=document.getElementById('rpt-'+f);if(b)b.disabled=false;});
+}
+function clearReports(){ ['json','html','sarif','pdf'].forEach(f=>{const b=document.getElementById('rpt-'+f);if(b)b.disabled=true;}); }
+function dlReport(fmt){ if(!selectedScanId)return; window.open(`/api/scan/${selectedScanId}/report/${fmt}`,'_blank'); }
+
+// ── SCAN LIST ─────────────────────────────
+async function refreshScanList(){
+  try{
+    const d=await (await fetch('/api/scans')).json();
+    const scans=d.scans||[];
+    document.getElementById('scan-count').textContent=`${scans.length} scan${scans.length!==1?'s':''}`;
+    if(!scans.length){document.getElementById('scan-list').innerHTML='<div class="empty"><div class="empty-icon">📡</div><div>No scans yet</div></div>';return;}
+    document.getElementById('scan-list').innerHTML=scans.map(s=>{
+      const col=statusColor[s.status]||'#94a3b8';
+      const time=new Date(s.started_at).toLocaleTimeString();
+      const total=s.stats?.total||0, risk=parseFloat(s.risk_score||0).toFixed(1);
+      const isActive=s.scan_id===selectedScanId?'active':'';
+      return `<div class="scan-item ${isActive}" onclick="loadScan('${s.scan_id}','${esc(s.target)}')">
+        <div class="s-dot" style="background:${col}"></div>
+        <div class="s-info"><div class="s-target">${esc(s.target)}</div><div class="s-meta">${s.scan_id} · ${time}</div></div>
+        <div style="text-align:right"><div class="s-badge" style="background:${col}22;color:${col};border:1px solid ${col}44">${s.status}</div><div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">${total} · ${risk}/10</div></div>
+      </div>`;
+    }).join('');
+  }catch(e){}
+}
+
+async function loadScan(id,target){
+  selectedScanId=id;
+  switchTab('dashboard');
+  showResults(target);
+  try{
+    const data=await (await fetch(`/api/scan/${id}/status`)).json();
+    if(data.stats) updateStats(data.stats,data.risk_score,target);
+    if(data.duration_seconds) document.getElementById('scan-dur').textContent=`Duration: ${parseFloat(data.duration_seconds).toFixed(1)}s`;
+    if(data.status==='completed'){
+      await fetchFindings(id); enableReports(id);
+      log(`[LOADED] Scan ${id} — ${data.stats?.total||0} findings`,'i');
+    } else if(data.status==='running'){
+      activeScanId=id;
+      document.getElementById('active-panel').style.display='';
+      document.getElementById('active-target').textContent=target;
+      startPolling(id);
+    } else { log(`[STATUS] Scan ${id} is ${data.status}`,'w'); }
+  }catch(e){log('[ERROR] Could not load scan','e');}
+  refreshScanList();
+}
+
+function stopActiveScan(){
+  if(!activeScanId)return;
+  fetch(`/api/scan/${activeScanId}/stop`,{method:'POST'});
+  if(pollTimer){clearInterval(pollTimer);pollTimer=null;}
+  document.getElementById('active-panel').style.display='none';
+  log('[STOPPED] Scan aborted by user','w'); showToast('⏹ Scan stopped');
+}
+function viewActiveScan(){ if(activeScanId) loadScan(activeScanId,document.getElementById('active-target').textContent); }
+
+// ── HISTORY TAB ───────────────────────────
+async function loadHistory(){
+  try{ const d=await (await fetch('/api/scans')).json(); historyData=d.scans||[]; renderHistory(historyData); }
+  catch(e){}
+}
+function renderHistory(scans){
+  if(!scans.length){document.getElementById('history-body').innerHTML='<div class="empty"><div class="empty-icon">📂</div><div>No scan history yet</div></div>';return;}
+  document.getElementById('history-body').innerHTML=scans.map(s=>{
+    const col=statusColor[s.status]||'#94a3b8';
+    const time=new Date(s.started_at).toLocaleString();
+    const total=s.stats?.total||0, risk=parseFloat(s.risk_score||0).toFixed(1);
+    return `<div class="ht-row" onclick="loadScan('${s.scan_id}','${esc(s.target)}')">
+      <div class="ht-cell" style="font-family:'Space Mono',monospace;font-size:.72rem;color:var(--accent)">${s.scan_id}</div>
+      <div class="ht-cell">${esc(s.target)}</div>
+      <div class="ht-cell"><span class="s-badge" style="background:${col}22;color:${col};border:1px solid ${col}44">${s.status}</span></div>
+      <div class="ht-cell" style="color:var(--accent);font-family:'Space Mono',monospace">${risk}/10</div>
+      <div class="ht-cell" style="font-family:'Space Mono',monospace">${total}</div>
+      <div class="ht-cell" style="font-size:.72rem;color:var(--text-muted)">${time}</div>
+    </div>`;
+  }).join('');
+}
+function filterHistory(){
+  const q=document.getElementById('hist-search').value.toLowerCase();
+  renderHistory(historyData.filter(s=>s.target.toLowerCase().includes(q)||s.scan_id.includes(q)));
+}
+
+// ── TEMPLATES TAB ─────────────────────────
+const TEMPLATES=[
+  {id:'xss-reflected',name:'Reflected XSS Detection',severity:'HIGH',category:'Cross-Site Scripting',cwe:'CWE-79',owasp:'A03:2025',cvss:8.2,desc:'Detects reflected XSS in GET/POST parameters using multiple payloads including script tags, img onerror, and SVG vectors.',tags:['xss','injection','reflected']},
+  {id:'sqli-error-based',name:'Error-Based SQL Injection',severity:'CRITICAL',category:'SQL Injection',cwe:'CWE-89',owasp:'A03:2025',cvss:9.0,desc:'Triggers database error messages to confirm SQL injection. Matches MySQL, PostgreSQL, Oracle, and MSSQL error patterns.',tags:['sqli','injection','error-based']},
+  {id:'sqli-time-based',name:'Time-Based Blind SQLi',severity:'CRITICAL',category:'SQL Injection',cwe:'CWE-89',owasp:'A03:2025',cvss:9.0,desc:'Detects blind SQL injection by injecting SLEEP/WAITFOR delay payloads and measuring response time.',tags:['sqli','blind','time-based']},
+  {id:'missing-security-headers',name:'Missing Security Headers',severity:'MEDIUM',category:'Security Misconfiguration',cwe:'CWE-693',owasp:'A02:2025',cvss:5.3,desc:'Checks for absence of CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, and Permissions-Policy.',tags:['headers','misconfiguration']},
+  {id:'open-redirect',name:'Open Redirect',severity:'MEDIUM',category:'Open Redirect',cwe:'CWE-601',owasp:'A01:2025',cvss:6.1,desc:'Tests redirect/url/next/return parameters for unvalidated redirect vulnerabilities usable for phishing.',tags:['redirect','phishing']},
+  {id:'path-traversal',name:'Path Traversal / LFI',severity:'HIGH',category:'Path Traversal',cwe:'CWE-22',owasp:'A01:2025',cvss:8.6,desc:'Tests file parameters for local file inclusion using traversal sequences, matching /etc/passwd and Windows system file signatures.',tags:['traversal','lfi','file-inclusion']},
+  {id:'exposed-git',name:'Exposed .git Directory',severity:'CRITICAL',category:'Information Disclosure',cwe:'CWE-538',owasp:'A02:2025',cvss:9.0,desc:'Checks if .git directory is publicly accessible, exposing full source code and commit history.',tags:['recon','git','disclosure']},
+  {id:'exposed-env',name:'Exposed .env File',severity:'CRITICAL',category:'Information Disclosure',cwe:'CWE-200',owasp:'A02:2025',cvss:9.5,desc:'Detects publicly accessible .env files that may contain database credentials, API keys, and secrets.',tags:['recon','env','credentials']},
+  {id:'phpinfo-disclosure',name:'PHPInfo Disclosure',severity:'HIGH',category:'Information Disclosure',cwe:'CWE-200',owasp:'A02:2025',cvss:7.5,desc:'Detects exposed phpinfo() pages that reveal server configuration, PHP version, loaded extensions, and environment variables.',tags:['recon','php','info-disclosure']},
+  {id:'spring-actuator',name:'Spring Boot Actuator Exposed',severity:'HIGH',category:'Security Misconfiguration',cwe:'CWE-284',owasp:'A02:2025',cvss:8.0,desc:'Checks for exposed Spring Boot actuator endpoints (/actuator/env, /actuator/health, /actuator/mappings) that leak internal state.',tags:['actuator','spring','misconfiguration']},
+];
+
+function renderTemplates(){
+  document.getElementById('tmpl-grid').innerHTML=TEMPLATES.map(t=>{
+    const col=SEV[t.severity]||'#6b7280';
+    const tags=t.tags.map(tg=>`<span class="tag">${tg}</span>`).join('');
+    return `<div class="tmpl-card">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+        <div class="tmpl-id">${t.id}</div>
+        <div class="tmpl-sev" style="background:${col}22;color:${col};border:1px solid ${col}44">${t.severity}</div>
+        <div style="font-family:'Space Mono',monospace;font-size:.67rem;color:var(--text-muted);margin-left:auto">CVSS ${t.cvss}</div>
+      </div>
+      <div class="tmpl-name">${t.name}</div>
+      <div class="tmpl-desc">${t.desc}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+        <div style="font-size:.67rem;color:var(--text-muted)">${t.cwe}</div>
+        <div style="font-size:.67rem;color:var(--text-muted)">${t.owasp}</div>
+      </div>
+      <div>${tags}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── SETTINGS ──────────────────────────────
+function loadSettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem('vsx_settings')||'{}');
+    if(s.threads) document.getElementById('set-threads').value=s.threads;
+    if(s.timeout) document.getElementById('set-timeout').value=s.timeout;
+    if(s.ratelimit) document.getElementById('set-ratelimit').value=s.ratelimit;
+    if(s.scantype) document.getElementById('set-scantype').value=s.scantype;
+    if(s.proxy) document.getElementById('set-proxy').value=s.proxy;
+    if(s.ua) document.getElementById('set-ua').value=s.ua;
+    if(s.ssl!==undefined) document.getElementById('set-ssl').checked=s.ssl;
+    if(s.redirect!==undefined) document.getElementById('set-redirect').checked=s.redirect;
+    if(s.ai!==undefined) document.getElementById('set-ai').checked=s.ai;
+    if(s.aiconf) document.getElementById('set-ai-conf').value=s.aiconf;
+    if(s.tmpl!==undefined) document.getElementById('set-tmpl').checked=s.tmpl;
+    if(s.autoreport!==undefined) document.getElementById('set-autoreport').checked=s.autoreport;
+    if(s.cookies) document.getElementById('set-cookies').value=s.cookies;
+    if(s.headers) document.getElementById('set-headers').value=s.headers;
+    if(s.fmts){ activeFmts=new Set(s.fmts); document.querySelectorAll('#fmt-group .tog').forEach(b=>b.classList.toggle('on',activeFmts.has(b.dataset.fmt))); }
+    // Apply thread default to form
+    if(s.threads) document.getElementById('threads-sel').value=s.threads;
+    if(s.ai!==undefined) document.getElementById('ai-sw').checked=s.ai;
+    if(s.tmpl!==undefined) document.getElementById('tmpl-sw').checked=s.tmpl;
+  }catch(e){}
+}
+
+function saveSettings(){
+  const s={
+    threads:document.getElementById('set-threads').value,
+    timeout:document.getElementById('set-timeout').value,
+    ratelimit:document.getElementById('set-ratelimit').value,
+    scantype:document.getElementById('set-scantype').value,
+    proxy:document.getElementById('set-proxy').value,
+    ua:document.getElementById('set-ua').value,
+    ssl:document.getElementById('set-ssl').checked,
+    redirect:document.getElementById('set-redirect').checked,
+    ai:document.getElementById('set-ai').checked,
+    aiconf:document.getElementById('set-ai-conf').value,
+    tmpl:document.getElementById('set-tmpl').checked,
+    autoreport:document.getElementById('set-autoreport').checked,
+    cookies:document.getElementById('set-cookies').value,
+    headers:document.getElementById('set-headers').value,
+    fmts:[...activeFmts],
+  };
+  localStorage.setItem('vsx_settings',JSON.stringify(s));
+  document.getElementById('threads-sel').value=s.threads;
+  document.getElementById('ai-sw').checked=s.ai;
+  document.getElementById('ssl-sw').checked=s.ssl;
+  document.getElementById('tmpl-sw').checked=s.tmpl;
+  showToast('✅ Settings saved!');
+}
+
+function clearHistory(){ if(!confirm('Clear all scan history from display?'))return; historyData=[]; renderHistory([]); document.getElementById('scan-list').innerHTML='<div class="empty"><div class="empty-icon">📡</div><div>No scans yet</div></div>'; showToast('🗑 Cleared'); }
+
+// ── UTILS ─────────────────────────────────
+function log(msg,type='i'){
+  const t=document.getElementById('terminal');
+  const d=document.createElement('div');
+  d.className=`log-line log-${type}`;
+  d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;
+  t.appendChild(d); t.scrollTop=t.scrollHeight;
+  while(t.children.length>120) t.removeChild(t.firstChild);
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(msg,err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.borderColor=err?'#f43f5e':'#22c55e'; t.style.color=err?'#f43f5e':'#22c55e';
+  t.style.display='block'; setTimeout(()=>t.style.display='none',3000);
+}
+
+// ── INIT ──────────────────────────────────
+loadSettings();
+renderTemplates();
+refreshScanList();
+setInterval(refreshScanList,5000);
+</script>
+</body>
+</html>
