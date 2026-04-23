@@ -98,14 +98,49 @@ class ScanResult:
 
     @property
     def risk_score(self) -> float:
-        """Compute an overall risk score (0–10) weighted by severity."""
-        weights = {"CRITICAL": 10, "HIGH": 7, "MEDIUM": 4, "LOW": 1, "INFO": 0}
+        """
+        Compute an overall risk score (0–10).
+
+        Strategy: severity-anchored base + volume bonus.
+        INFO findings are intentionally excluded — they are recon artifacts
+        (open ports, DNS records, WHOIS data) and must never dilute the score.
+
+        Old formula bug: dividing by len(all_findings)*10 caused INFO floods
+        (10+ INFO recon entries) to push CRITICAL/HIGH findings to a score of ~2.
+        """
         if not self.findings:
             return 0.0
-        total = sum(weights.get(f.severity, 0) for f in self.findings)
-        # Normalize
-        max_possible = len(self.findings) * 10
-        return round((total / max_possible) * 10, 2) if max_possible else 0.0
+
+        # Exclude INFO — they are informational, not vulnerabilities
+        real_findings = [f for f in self.findings if f.severity != "INFO"]
+        if not real_findings:
+            return 0.0
+
+        counts = {s: sum(1 for f in real_findings if f.severity == s)
+                  for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")}
+
+        # Base score anchored to highest severity present
+        if counts["CRITICAL"] > 0:
+            base = 8.5
+        elif counts["HIGH"] > 0:
+            base = 6.5
+        elif counts["MEDIUM"] > 0:
+            base = 4.0
+        elif counts["LOW"] > 0:
+            base = 2.0
+        else:
+            return 0.0
+
+        # Volume bonus: more/higher findings push toward 10, capped at +1.5
+        bonus = min(
+            1.5,
+            counts["CRITICAL"] * 0.30
+            + counts["HIGH"]    * 0.15
+            + counts["MEDIUM"]  * 0.08
+            + counts["LOW"]     * 0.02,
+        )
+
+        return round(min(10.0, base + bonus), 2)
 
     def add_finding(self, finding: Finding):
         # Deduplicate by title + URL + parameter
